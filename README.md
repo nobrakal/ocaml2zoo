@@ -18,16 +18,14 @@ To make sure it is up-to-date, run:
 opam update --all --repositories
 ```
 
-Then, you need to install [this custom version of the OCaml compiler](https://github.com/clef-men/ocaml/tree/generative_constructors) featuring atomic record fields, atomic arrays and generative constructors.
-Hopefully, it should be merged into the OCaml compiler one day.
-
-The following commands take care of this:
+Then, create a local switch with OCaml 5.4.1:
 
 ```
-opam switch create . --empty
+opam switch create . 5.4.1
 eval $(opam env --switch=. --set-switch)
-opam pin add ocaml-variants git+https://github.com/clef-men/ocaml#generative_constructors --yes
 ```
+
+Note: with stock OCaml, generative constructors from [this fork](https://github.com/clef-men/ocaml/tree/generative_constructors) are not available, so the corresponding tests (`generative_1`, `generative_2`) cannot pass.
 
 Then, install dependencies with:
 

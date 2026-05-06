@@ -733,7 +733,7 @@ let rec pattern_is_neutral (pat : Typedtree.pattern) =
   | Tpat_any ->
       true
   | Tpat_tuple pats ->
-      List.for_all pattern_is_neutral pats
+      List.for_all (fun (_, pat) -> pattern_is_neutral pat) pats
   | Tpat_record (pats, Closed) ->
       List.for_all (fun (_, _, pat) -> pattern_is_neutral pat) pats
   | Tpat_construct (_, constr, pats, _) ->
@@ -748,7 +748,7 @@ let rec pattern_to_binder ~ctx ~err (pat : Typedtree.pattern) =
   | Tpat_var (id, _, _) ->
       Context.add_local ctx id ;
       Some (Ident.name id)
-  | Tpat_alias (pat, id, _, _) ->
+  | Tpat_alias (pat, id, _, _, _) ->
       if pattern_is_neutral pat then (
         Context.add_local ctx id ;
         Some (Ident.name id)
@@ -756,7 +756,7 @@ let rec pattern_to_binder ~ctx ~err (pat : Typedtree.pattern) =
         unsupported ~loc:pat.pat_loc err
       )
   | Tpat_tuple pats ->
-      if List.for_all pattern_is_neutral pats then
+      if List.for_all (fun (_, pat) -> pattern_is_neutral pat) pats then
         None
       else
         unsupported ~loc:pat.pat_loc err
@@ -783,7 +783,7 @@ let rec transl_pattern ~ctx (pat : Typedtree.pattern) =
       Context.add_local ctx id ;
       Some (Pat_var (Ident.name id))
   | Tpat_tuple pats ->
-      let bdrs = List.map (pattern_to_binder ~ctx ~err:Pattern_nested) pats in
+      let bdrs = List.map (fun (_, pat) -> pattern_to_binder ~ctx ~err:Pattern_nested pat) pats in
       Some (Pat_tuple bdrs)
   | Tpat_record ((_, { lbl_repres= Record_unboxed _; _ }, pat) :: _, _) ->
       transl_pattern ~ctx pat
@@ -888,10 +888,10 @@ let rec transl_expression ~ctx (expr : Typedtree.expression) =
       let arguments () =
         List.map (fun (lbl, expr') ->
           check_argument_label ~loc:expr.exp_loc lbl ;
-          match expr' with
-          | None ->
+          match (expr' : Typedtree.apply_arg) with
+          | Omitted _ ->
               unsupported ~loc:expr.exp_loc Argument_omitted
-          | Some expr' ->
+          | Arg expr' ->
               transl_expression ~ctx expr'
         ) exprs
       in
@@ -970,7 +970,7 @@ let rec transl_expression ~ctx (expr : Typedtree.expression) =
   | Texp_for (_, _, _, _, Downto, _) ->
       unsupported ~loc:expr.exp_loc Expr_for_downward
   | Texp_tuple exprs ->
-      let exprs = List.map (transl_expression ~ctx) exprs in
+      let exprs = List.map (fun (_, e) -> transl_expression ~ctx e) exprs in
       Tuple exprs
   | Texp_record rcd ->
       transl_expression_record ~ctx ~loc:expr.exp_loc rcd.fields rcd.extended_expression (fun exprs ->
@@ -997,17 +997,7 @@ let rec transl_expression ~ctx (expr : Typedtree.expression) =
           let tag = Option.get_lazy (fun () -> unsupported ~loc:lid.loc Functor) (Longident.last lid.txt) in
           let _variant = Context.add_dependency_from_constructor ctx ~loc:lid.loc constr in
           let mk_immutable exprs =
-            let flag =
-              match constr.cstr_generative with
-              | Nongenerative ->
-                  Immutable_nongenerative
-              | Generative ->
-                  if Attribute.has_reveal constr.cstr_attributes then
-                    Immutable_generative_strong
-                  else
-                    Immutable_generative_weak
-            in
-            Constr (flag, tag, exprs)
+            Constr (Immutable_nongenerative, tag, exprs)
           in
           match constr.cstr_inlined with
           | None ->
@@ -1160,7 +1150,7 @@ and transl_branches : type a. ctx:Context.t -> a Typedtree.case list -> branch l
         in
         let pat, bdr =
           match pat.pat_desc with
-          | Tpat_alias (pat, local, _, _) ->
+          | Tpat_alias (pat, local, _, _, _) ->
               Context.add_local ctx local ;
               pat, Some (Ident.name local)
           | _ ->
