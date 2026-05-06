@@ -8,6 +8,9 @@ To translate the [`dune`](https://dune.build/) project living in the `proj` dire
 ocaml2zoo proj dst
 ```
 
+THIS IS AN AUTOMATIC PORT TO THE RELEASED OCAML 5.4.1.
+In particular, there is no support of [generative constructors](https://github.com/clef-men/ocaml/tree/generative_constructors).
+
 ## Building
 
 First, you need to install [`opam`](https://opam.ocaml.org/) (>= 2.0).
@@ -24,8 +27,6 @@ Then, create a local switch with OCaml 5.4.1:
 opam switch create . 5.4.1
 eval $(opam env --switch=. --set-switch)
 ```
-
-Note: with stock OCaml, generative constructors from [this fork](https://github.com/clef-men/ocaml/tree/generative_constructors) are not available, so the corresponding tests (`generative_1`, `generative_2`) cannot pass.
 
 Then, install dependencies with:
 
